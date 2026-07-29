@@ -20,6 +20,15 @@
 - **前端**：React 18 + TypeScript + Tailwind CSS + Vite
 - **数据库**：SQLite（本地存储）
 
+## 快速命令
+
+环境已配好的开发者，直接这两条就够了：
+
+```bash
+pnpm tauri dev                  # 启动开发模式（前端热更新）
+pnpm tauri build --bundles nsis # 构建 NSIS 安装包
+```
+
 ## 开发环境搭建
 
 本节介绍如何从零开始搭建 TinyCalendar 的开发环境。如果你只是想使用本软件，请直接下载安装包；如果你想参与开发或从源码构建，请按以下步骤操作。
