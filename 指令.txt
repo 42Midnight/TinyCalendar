@@ -1,0 +1,2 @@
+pnpm tauri dev  开发模式（热更新）
+pnpm tauri build --bundles nsis  打包
