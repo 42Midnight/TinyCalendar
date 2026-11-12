@@ -68,8 +68,8 @@ cd TinyCalendar
 
 # 方式二：使用 nvm-windows
 # 下载安装：https://github.com/coreybutler/nvm-windows/releases
-nvm install 18
-nvm use 18
+nvm install 22
+nvm use 22
 ```
 
 **安装 pnpm**（版本由 `package.json` 的 `packageManager` 字段锁定为 11.8.0）：
@@ -119,15 +119,28 @@ Tauri 在 Windows 上需要 Microsoft Visual Studio C++ 构建工具来编译 Ru
 1. 下载 [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/zh-hans/downloads/?q=build+tools)
 2. 安装时勾选"**使用 C++ 的桌面开发**"工作负载
 
-### 第五步：配置 .cargo/config.toml（可选）
+### 第五步：配置 .cargo/config.toml（仅当链接失败时需要）
 
-如果遇到 MSVC 链接器找不到的错误，需要在项目根目录创建 `.cargo/config.toml` 来指定 VS Build Tools 的路径：
+正常情况下这一步可以跳过。如果你运行 `cargo build` 或 `pnpm tauri:dev` 时报下面任意一条：
 
-```bash
-mkdir -p .cargo
+```
+LINK : fatal error LNK1181: 无法打开输入文件"kernel32.lib"
+error: linker `link.exe` not found
 ```
 
-`.cargo/config.toml` 模板（请根据实际安装路径调整）：
+说明 rustc 没认出来本机装的 VS Build Tools / Windows SDK（较新的 VS 大版本常见），
+link.exe 找不到库目录。此时在项目根目录跑一条命令自动生成配置即可：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-msvc.ps1
+```
+
+脚本会通过 vswhere（失败则直接扫盘）找到最新的 MSVC 工具集和 Windows SDK，
+写出 `.cargo/config.toml`（内含 `LIB` / `INCLUDE` / 链接器路径），并打印用了哪一组版本。
+换机器、升级 VS 或升级 Windows SDK 后重新跑一次即可。
+
+<details>
+<summary>手动填写模板（脚本不适用时）</summary>
 
 ```toml
 [env]
@@ -138,7 +151,9 @@ INCLUDE = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\V
 linker = "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.xx.xxxxx/bin/Hostx64/x64/link.exe"
 ```
 
-> 💡 **提示**：此文件已加入 `.gitignore`，不会被提交到仓库。正常安装 VS Build Tools 后通常不需要手动配置此文件。仅在 `cargo build` 报 `link.exe` 找不到时使用。
+</details>
+
+> 💡 **提示**：此文件是机器相关的，已加入 `.gitignore`，不会被提交到仓库，克隆下来不会自动带过来 —— 所以换了机器才需要重新生成。
 
 ### 第六步：安装依赖
 
@@ -207,6 +222,8 @@ TinyCalendar/
 │   │   └── utils/        # 工具模块
 │   ├── Cargo.toml        # Rust 依赖
 │   └── tauri.conf.json   # Tauri 配置
+├── scripts/              # 辅助脚本
+│   └── setup-msvc.ps1    # 生成 .cargo/config.toml（链接失败时用）
 ├── docs/                 # 项目文档
 │   ├── PRD.md            # 产品需求文档
 │   ├── DESIGN.md         # UI 设计规范
@@ -227,20 +244,24 @@ TinyCalendar/
 <details>
 <summary><b>pnpm 命令找不到</b></summary>
 
-确保已启用 corepack，或通过 npm 全局安装：
+确保已启用 corepack，或通过 npm 全局安装（版本需 11.x）：
 ```bash
-npm install -g pnpm
+npm install -g pnpm@11.8.0
 ```
 </details>
 
 <details>
-<summary><b>cargo build 报 link.exe 找不到</b></summary>
+<summary><b>cargo build 报 link.exe / kernel32.lib 找不到</b></summary>
 
-确保安装了 VS Build Tools 且选择了"使用 C++ 的桌面开发"工作负载。如已安装仍报错，请参考第五步创建 `.cargo/config.toml` 手动指定路径。
+先确认装了 VS Build Tools 且勾选了"使用 C++ 的桌面开发"工作负载；装好后仍报错，就运行第五步的脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-msvc.ps1
+```
 </details>
 
 <details>
-<summary><b>pnpm tauri dev 窗口白屏/空白</b></summary>
+<summary><b>pnpm tauri:dev 窗口白屏/空白</b></summary>
 
 1. 确认 `pnpm dev`（纯前端）能正常运行：浏览器打开 `http://localhost:1420`
 2. 检查浏览器控制台是否有 JavaScript 错误
@@ -266,8 +287,9 @@ TinyCalendar 是 Windows 桌面应用，需要使用 MSVC 工具链。GNU 工具
 
 ### 环境基线
 
-归档前的最后一次提交在此环境下完整验证通过（`pnpm build` + `cargo check --profile dev-release` 均无报错）。
-恢复开发时如果遇到奇怪的编译错误，先把工具链对齐到这一组版本：
+归档前的最后一次提交做过完整回归：从远程仓库**全新克隆**后依次执行
+`pnpm install --frozen-lockfile` → `pnpm build` → `cargo build --profile dev-release` → `pnpm tauri:build:nsis`，
+全部通过。恢复开发时如果遇到奇怪的编译错误，先把工具链对齐到这一组版本：
 
 | 组件 | 归档时验证版本 |
 |---|---|
