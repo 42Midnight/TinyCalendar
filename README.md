@@ -2,6 +2,11 @@
 
 > 轻量级 Windows 桌面日历记事软件 — 安装包 < 10MB，数据完全本地存储，无需网络。
 
+> **项目状态：已归档（2026-11）** — 短期内不再开发更新，源码以当前提交为准。
+> 仓库内是完整可构建的源码（依赖由 `pnpm-lock.yaml` 与 `src-tauri/Cargo.lock` 锁定），
+> 按下方「开发环境搭建」即可在任意 Windows 机器上恢复到可开发状态。
+> 最后一次验证可用的工具链见文末「环境基线」。
+
 ## 功能
 
 - 📅 **三种视图**：月视图、周视图、日视图
@@ -22,11 +27,13 @@
 
 ## 快速命令
 
-环境已配好的开发者，直接这两条就够了：
+环境已配好的开发者，直接这几条就够了：
 
 ```bash
-pnpm tauri dev                  # 启动开发模式（前端热更新）
-pnpm tauri build --bundles nsis # 构建 NSIS 安装包
+pnpm install          # 安装/更新依赖（锁定 pnpm 11）
+pnpm tauri:dev        # 启动开发模式（前端热更新，Rust 用 dev-release 配置）
+pnpm tauri:build:nsis # 构建 NSIS 安装包
+pnpm build            # 只做前端类型检查 + 打包（不编译 Rust，验证改动最快）
 ```
 
 ## 开发环境搭建
@@ -38,7 +45,7 @@ pnpm tauri build --bundles nsis # 构建 NSIS 安装包
 | 工具 | 最低版本 | 说明 |
 |---|---|---|
 | Node.js | >= 18 | 前端运行时 |
-| pnpm | >= 8 | 包管理器（推荐，请勿使用 npm/yarn） |
+| pnpm | **11.x** | 包管理器（推荐，请勿使用 npm/yarn）。`pnpm-lock.yaml` 为 lockfileVersion 9，pnpm 8 及更早版本无法安装 |
 | Rust | >= 1.70 | 后端编译工具链 |
 | Git | >= 2.30 | 版本控制 |
 | VS Build Tools | 2022 | Windows MSVC 链接器（Tauri 编译必需） |
@@ -65,18 +72,21 @@ nvm install 18
 nvm use 18
 ```
 
-**安装 pnpm**：
+**安装 pnpm**（版本由 `package.json` 的 `packageManager` 字段锁定为 11.8.0）：
 
 ```bash
 corepack enable
-corepack prepare pnpm@latest --activate
+corepack prepare pnpm@11.8.0 --activate
+
+# 若系统没有 corepack（Node 25+ 已不再内置），改用：
+# npm install -g pnpm@11.8.0
 ```
 
 验证安装：
 
 ```bash
 node -v   # 应 >= 18
-pnpm -v   # 应 >= 8
+pnpm -v   # 应为 11.x
 ```
 
 ### 第三步：安装 Rust 工具链
@@ -143,20 +153,25 @@ pnpm install
 ### 第七步：启动开发模式
 
 ```bash
-pnpm tauri dev
+pnpm tauri:dev
 ```
 
 首次启动会编译 Rust 后端（可能花费数分钟），后续热更新会快很多。启动后你会看到：
 - 一个无边框的 Tauri 窗口
 - Vite 开发服务器运行在 `http://localhost:1420`
 - 前端代码修改会自动热更新
-- Rust 代码修改需要重新 `pnpm tauri dev`
+- Rust 代码修改需要重新 `pnpm tauri:dev`
+
+> `tauri:dev` 实际执行的是 `tauri dev -- --profile dev-release`，即用 `Cargo.toml` 里的
+> `dev-release` 配置（继承 release 但关闭 LTO、提高 parallel codegen），编译比纯 release 快、
+> 运行比 debug 流畅。如果想用标准 debug 配置调试 Rust，直接跑 `pnpm tauri dev`。
 
 ### 构建安装包
 
 ```bash
 # 构建 NSIS 安装包（.exe）
-pnpm tauri:build
+pnpm tauri:build:nsis
+# 等价于 pnpm tauri:build（tauri.conf.json 里 bundle.targets 只配了 nsis）
 
 # 构建完成后，安装包位于：
 # src-tauri/target/release/bundle/nsis/
@@ -195,10 +210,9 @@ TinyCalendar/
 ├── docs/                 # 项目文档
 │   ├── PRD.md            # 产品需求文档
 │   ├── DESIGN.md         # UI 设计规范
-│   ├── ARCHITECTURE.md   # 技术架构文档
-│   ├── requirements.md   # 需求规格说明书
-│   ├── architecture.md   # 系统架构设计（草案）
+│   ├── architecture.md   # 技术架构文档
 │   ├── database.md       # 数据库设计文档
+│   ├── requirements.md   # 需求规格说明书
 │   └── development-plan.md # 开发计划与里程碑
 ├── public/               # 静态资源
 ├── package.json          # 前端依赖与脚本
@@ -249,3 +263,19 @@ rustup show  # 查看当前工具链
 ```
 TinyCalendar 是 Windows 桌面应用，需要使用 MSVC 工具链。GNU 工具链（`x86_64-pc-windows-gnu`）不保证能正常编译 Tauri。
 </details>
+
+### 环境基线
+
+归档前的最后一次提交在此环境下完整验证通过（`pnpm build` + `cargo check --profile dev-release` 均无报错）。
+恢复开发时如果遇到奇怪的编译错误，先把工具链对齐到这一组版本：
+
+| 组件 | 归档时验证版本 |
+|---|---|
+| Windows | 10 / 11 x64 |
+| Node.js | v24.19.0 |
+| pnpm | 11.8.0 |
+| Rust / Cargo | 1.98.1（`stable-x86_64-pc-windows-msvc`） |
+| VS Build Tools | 2022/2026 Build Tools，含"使用 C++ 的桌面开发"工作负载 |
+
+依赖版本无需猜测：前端由 `pnpm-lock.yaml`、Rust 由 `src-tauri/Cargo.lock` 唯一确定，
+执行 `pnpm install --frozen-lockfile` 即可还原完全相同的依赖树。

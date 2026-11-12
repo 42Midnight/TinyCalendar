@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+*.tsbuildinfo
 
 # Rust
 src-tauri/target/
@@ -14,6 +15,9 @@ src-tauri/target/
 *.swp
 *.swo
 
+# Local tool settings (per-machine, must not be shared)
+.claude/settings.local.json
+
 # OS
 .DS_Store
 Thumbs.db
@@ -21,6 +25,15 @@ Thumbs.db
 # Env
 .env
 .env.local
+.env.*.local
+
+# Local data / debugging leftovers
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.pdb
 
 # Logs
 *.log
